@@ -159,6 +159,10 @@ function computeDefaults(schema, parentDefaults, definitions={}) {
     // Use referenced schema defaults for this node.
     const refSchema = findSchemaDefinition(schema.$ref, definitions);
     return computeDefaults(refSchema, defaults, definitions);
+  } else if ("allOf" in schema) {
+    // Use referenced schema defaults for this node.
+    let allDefaults = schema.allOf.map(childSchema => computeDefaults(childSchema, defaults, definitions));
+    return Object.assign({}, ...allDefaults);
   } else if (isFixedItems(schema)) {
     defaults = schema.items.map(itemSchema => computeDefaults(itemSchema, undefined, definitions));
   }
@@ -332,10 +336,19 @@ function findSchemaDefinition($ref, definitions={}) {
 }
 
 export function retrieveSchema(schema, definitions={}) {
+  if (schema.hasOwnProperty("allOf")) {
+    const _schema = schema.allOf.map(childSchema => retrieveSchema(childSchema, definitions));
+    return {
+      "type": "object",
+      "properties": Object.assign({}, ..._schema.map(childSchema => childSchema.properties))
+    };
+  }
+
   // No $ref attribute found, returning the original schema.
   if (!schema.hasOwnProperty("$ref")) {
     return schema;
   }
+
   // Retrieve the referenced schema definition.
   const $refSchema = findSchemaDefinition(schema.$ref, definitions);
   // Drop the $ref property of the source schema.
@@ -432,6 +445,10 @@ export function toIdSchema(schema, id, definitions) {
   const idSchema = {
     $id: id || "root"
   };
+  if ("allOf" in schema) {
+    const _schema = schema.allOf.map(childSchema => retrieveSchema(childSchema, definitions));
+    return Object.assign({}, ..._schema.map(childSchema => childSchema.properties));
+  }
   if ("$ref" in schema) {
     const _schema = retrieveSchema(schema, definitions);
     return toIdSchema(_schema, id, definitions);
