@@ -273,25 +273,26 @@ export function orderProperties(properties, order) {
     `properties '${arr.join("', '")}'` :
     `property '${arr[0]}'`;
   const propertyHash = arrayToHash(properties);
-  const orderHash = arrayToHash(order);
   const extraneous = order.filter(prop => prop !== "*" && !propertyHash[prop]);
-  if (extraneous.length) {
-    throw new Error(`uiSchema order list contains extraneous ${errorPropList(extraneous)}`);
-  }
+
+  const actualOrder = order.filter(prop => prop === "*" || extraneous.indexOf(prop) === -1);
+  const orderHash = arrayToHash(actualOrder);
+
   const rest = properties.filter(prop => !orderHash[prop]);
-  const restIndex = order.indexOf("*");
+  const restIndex = actualOrder.indexOf("*");
   if (restIndex === -1) {
     if (rest.length) {
       throw new Error(`uiSchema order list does not contain ${errorPropList(rest)}`);
     }
-    return order;
+    return actualOrder;
   }
-  if (restIndex !== order.lastIndexOf("*")) {
+  if (restIndex !== actualOrder.lastIndexOf("*")) {
     throw new Error("uiSchema order list contains more than one wildcard item");
   }
 
-  const complete = [...order];
+  const complete = [...actualOrder];
   complete.splice(restIndex, 1, ...rest);
+
   return complete;
 }
 
@@ -445,13 +446,13 @@ export function toIdSchema(schema, id, definitions) {
   const idSchema = {
     $id: id || "root"
   };
-  if ("allOf" in schema) {
-    const _schema = schema.allOf.map(childSchema => retrieveSchema(childSchema, definitions));
-    return Object.assign({}, ..._schema.map(childSchema => childSchema.properties));
-  }
   if ("$ref" in schema) {
     const _schema = retrieveSchema(schema, definitions);
     return toIdSchema(_schema, id, definitions);
+  }
+  if ("allOf" in schema) {
+    const _schema = schema.allOf.map(childSchema => retrieveSchema(childSchema, definitions));
+    return Object.assign({}, ..._schema.map(childSchema => childSchema.properties));
   }
   if ("items" in schema) {
     return toIdSchema(schema.items, id, definitions);
