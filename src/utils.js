@@ -341,7 +341,8 @@ export function retrieveSchema(schema, definitions={}) {
     const _schema = schema.allOf.map(childSchema => retrieveSchema(childSchema, definitions));
     return {
       "type": "object",
-      "properties": Object.assign({}, ..._schema.map(childSchema => childSchema.properties))
+      "properties": Object.assign({}, ..._schema.map(childSchema => childSchema.properties)),
+      "title": schema.title,
     };
   }
 
